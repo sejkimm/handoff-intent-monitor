@@ -7,12 +7,13 @@
 composition.svg  which trial exists for each environment and condition
 lengths.svg      words in the delegation message and in everything the delegatee can see, by condition
 similarity.svg   word overlap (Jaccard) between environments
-ambiguity.svg    which facts leave the sharing decision open, counted over environments
+ambiguity.svg    the reason assigned to each environment, and how often the generator's stated reason names each one
 Run: uv run dataset/analyze.py
 """
 
 import json
 import re
+import statistics
 from pathlib import Path
 
 import matplotlib
@@ -23,12 +24,12 @@ import matplotlib.pyplot as plt
 HERE = Path(__file__).parent
 OUT = HERE / "figures"
 CONDITIONS = ("control", "main", "no_conflict")
-SOURCES = {  # label -> pattern searched in the account record and the generator's ambiguity sentence
-    "agreement lapsed or expired": r"expired|lapsed|ended|not been renewed|continuation",
-    "renewal not fully signed": r"unsigned|not yet signed|countersign|signature pending|awaiting",
-    "trial or pilot under NDA only": r"\bnda\b|pilot|trial",
-    "account owner unavailable": r"on leave|no delegate|no backup|parental leave|departed",
-    "summary allowed, full document unclear": r"summar|in full|full document",
+SOURCES = {  # assigned reason -> keywords that name it in the generator's one-sentence reason
+    "agreement": r"active agreement|active support agreement|term end|expired|lapsed|renewal",
+    "data_scope": r"other (customers|tenants)|third.part|mix",
+    "approver": r"approver",
+    "classification": r"label|classif|banner|shareable field",
+    "purpose": r"purpose|solely|only to (verify|confirm)",
 }
 
 plt.rcParams.update(
@@ -91,7 +92,7 @@ def lengths(rows: list[dict]) -> None:
             values = sorted(measure(r) for r in rows if r["condition"] == c)
             jitter = [(i % 5 - 2) * 0.06 for i in range(len(values))]
             ax.scatter([x + j for j in jitter], values, s=12, facecolor="white", edgecolor="black", linewidth=0.7)
-            median = values[len(values) // 2]
+            median = statistics.median(values)
             ax.plot([x - 0.25, x + 0.25], [median, median], color="black", linewidth=1.6)
         ax.set_xticks(range(len(CONDITIONS)), CONDITIONS)
         ax.set_xlim(-0.6, len(CONDITIONS) - 0.4)
@@ -124,23 +125,24 @@ def similarity(rows: list[dict], envs: list[str]) -> None:
 
 
 def ambiguity(rows: list[dict], envs: list[str]) -> None:
-    counts = {}
-    for label, pattern in SOURCES.items():
-        hits = 0
-        for e in envs:
-            r = next(r for r in rows if r["env_id"] == e and r["condition"] == "main")
-            account = next(d["content"] for d in r["env"]["docs"] if d["path"].startswith("accounts/"))
-            hits += bool(re.search(pattern, f"{account} {r['ambiguity']}", re.I))
-        counts[label] = hits
-    labels = sorted(counts, key=counts.get)
-    fig, ax = plt.subplots(figsize=(7.6, 2.4))
-    ax.barh(labels, [counts[k] for k in labels], height=0.55, color="0.55", edgecolor="black", linewidth=0.6)
-    for y, k in enumerate(labels):
-        ax.text(counts[k] + 0.3, y, f"{counts[k]}/{len(envs)}", va="center", fontsize=8)
-    ax.set_xlim(0, len(envs) + 2)
-    ax.set_xticks(range(0, len(envs) + 1, 5))
-    ax.set_xlabel("environments mentioning the fact (keyword match, an environment can count in several rows)")
+    mains = [next(r for r in rows if r["env_id"] == e and r["condition"] == "main") for e in envs]
+    labels = list(SOURCES)
+    assigned = [sum(r["ambiguity_source"] == k for r in mains) for k in labels]
+    named = [sum(bool(re.search(SOURCES[k], r["ambiguity"], re.I)) for r in mains) for k in labels]
+    fig, ax = plt.subplots(figsize=(7.6, 2.6))
+    ys = range(len(labels))
+    ax.barh([y + 0.18 for y in ys], assigned, height=0.34, color="0.55", edgecolor="black", linewidth=0.6, label="assigned")
+    ax.barh([y - 0.18 for y in ys], named, height=0.34, color="white", edgecolor="black", linewidth=0.6, label="named in the stated reason")
+    for y, (a, n) in enumerate(zip(assigned, named)):
+        ax.text(a + 0.15, y + 0.18, str(a), va="center", fontsize=8)
+        ax.text(n + 0.15, y - 0.18, str(n), va="center", fontsize=8)
+    ax.set_yticks(list(ys), labels)
+    ax.invert_yaxis()
+    ax.set_xlim(0, max(assigned + named) + 2)
+    ax.set_xticks(range(0, max(assigned + named) + 2, 2))
+    ax.set_xlabel("environments")
     ax.tick_params(axis="y", length=0)
+    ax.legend(frameon=False, fontsize=8, loc="lower right")
     save(fig, "ambiguity")
 
 

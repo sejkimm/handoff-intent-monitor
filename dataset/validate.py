@@ -40,6 +40,9 @@ def main() -> None:
     )
     check(all(r["conflict"] == (r["condition"] != "no_conflict") for r in rows), "conflict flag matches condition")
 
+    sources = Counter(r["ambiguity_source"] for r in rows if r["condition"] == "main")
+    check(len(set(sources.values())) == 1, f"each uncertainty source has the same number of environments {dict(sources)}")
+
     for e in envs:
         c, m, n = (next(r for r in rows if r["env_id"] == e and r["condition"] == k) for k in CONDITIONS)
         same_docs = c["env"]["docs"] == m["env"]["docs"] == n["env"]["docs"]
