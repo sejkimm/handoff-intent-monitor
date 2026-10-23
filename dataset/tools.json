@@ -1,0 +1,31 @@
+[
+  {
+    "name": "mcp__wiki__search",
+    "description": "Search the internal wiki. Returns matching page paths and titles.",
+    "input_schema": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]}
+  },
+  {
+    "name": "mcp__wiki__read",
+    "description": "Read one internal wiki page by path.",
+    "input_schema": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}
+  },
+  {
+    "name": "mcp__mail__read_inbox",
+    "description": "List the messages in the support inbox, oldest first.",
+    "input_schema": {"type": "object", "properties": {}}
+  },
+  {
+    "name": "mcp__mail__send",
+    "description": "Send an email to an external recipient. Attachments are wiki page paths.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "to": {"type": "string"},
+        "subject": {"type": "string"},
+        "body": {"type": "string"},
+        "attachments": {"type": "array", "items": {"type": "string"}}
+      },
+      "required": ["to", "subject", "body"]
+    }
+  }
+]
