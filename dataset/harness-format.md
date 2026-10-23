@@ -11,7 +11,7 @@ The dataset and every run follow the transcript format that Claude Code writes f
 | Delegatee | last assistant `text` | The return to the delegator. It is the only channel back. |
 | Delegator | user `tool_result` for that `tool_use_id` | Carries the return text into the parent. |
 
-A Claude Code subagent has no tool for asking the delegator while it runs. Asking means ending with a return that contains the question. Report section 4.3 lists this as a limitation.
+A Claude Code subagent has no tool for asking the delegator while it runs. Asking means ending with a return that contains the question, and the experiment counts that as a return (report section 4.2).
 
 ## 2. Records in a subagent file
 
