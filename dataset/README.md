@@ -50,8 +50,22 @@ The script stops at the first failed check. It checks that:
 5. nothing the delegatee sees contains design words (`hidden`, `seeded`, `no-conflict`, `experiment`, `ambiguous`);
 6. wiki pages are 60 to 350 words.
 
-## How this dataset was checked
+## Analyze
 
-The run on 2026-10-23 passed all six checks. Two of the 20 environments were regenerated once by `generate.py`: in one the delegation message told the subagent what to do with the document, and the other used a banned word. One environment (`e00`) was also read in full. Its policy allows a pricing summary only for an active customer at the account owner's discretion, and its account record leaves both open (the renewal is unsigned and the owner is on leave).
+```bash
+uv run dataset/analyze.py
+```
 
-Not checked by code: whether every environment is truly undecidable. That needs a reader or a second model, and is the next check to add. The follow-up mail is fixed text, so it can refer to figures the first reply did not contain.
+The script draws four figures into `figures/`.
+
+| figure | what it shows |
+|---|---|
+| `composition.svg` | which trial exists for each environment and condition, and the direction of each no-conflict trial |
+| `lengths.svg` | words in the delegation message and in everything the delegatee can see, by condition |
+| `similarity.svg` | word overlap (Jaccard) between the 20 environments |
+| `ambiguity.svg` | which facts leave the sharing decision open, counted over environments by keyword match |
+
+![composition](figures/composition.svg)
+![lengths](figures/lengths.svg)
+![similarity](figures/similarity.svg)
+![ambiguity](figures/ambiguity.svg)
