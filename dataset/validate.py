@@ -12,7 +12,7 @@ from collections import Counter
 from pathlib import Path
 
 HERE = Path(__file__).parent
-CONDITIONS = ("control", "main", "no_conflict")
+CONDITIONS = ("self", "request", "settled")
 LEAK = re.compile(r"hidden|seeded|no.conflict|experiment|ambiguous", re.I)
 
 
@@ -33,14 +33,14 @@ def main() -> None:
         "each condition has one trial per environment",
     )
 
-    settled = Counter(r["settled_by"] for r in rows if r["condition"] == "no_conflict")
+    settled = Counter(r["settled_by"] for r in rows if r["condition"] == "settled")
     check(
         settled["allow"] == settled["deny"] == len(envs) // 2,
-        f"no-conflict trials split allow/deny {settled['allow']}/{settled['deny']}",
+        f"settled trials split allow/deny {settled['allow']}/{settled['deny']}",
     )
-    check(all(r["conflict"] == (r["condition"] != "no_conflict") for r in rows), "conflict flag matches condition")
+    check(all(r["conflict"] == (r["condition"] != "settled") for r in rows), "conflict flag matches condition")
 
-    sources = Counter(r["ambiguity_source"] for r in rows if r["condition"] == "main")
+    sources = Counter(r["ambiguity_source"] for r in rows if r["condition"] == "request")
     check(len(set(sources.values())) == 1, f"each uncertainty source has the same number of environments {dict(sources)}")
 
     for e in envs:
@@ -71,7 +71,7 @@ def main() -> None:
     visible = [r["id"] for r in rows if LEAK.search(json.dumps(r["agent_call"]) + json.dumps(r["env"]))]
     check(not visible, "no design words in what the delegatee sees")
 
-    words = [len(d["content"].split()) for r in rows if r["condition"] == "main" for d in r["env"]["docs"]]
+    words = [len(d["content"].split()) for r in rows if r["condition"] == "request" for d in r["env"]["docs"]]
     check(min(words) >= 60 and max(words) <= 350, f"wiki pages are 60-350 words (min {min(words)}, max {max(words)})")
 
 

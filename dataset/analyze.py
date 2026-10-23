@@ -4,7 +4,7 @@
 # ///
 """Draw four descriptive figures of dataset/scenarios.jsonl into dataset/figures/.
 
-composition.svg  which trial exists for each environment and condition
+composition.svg  how the three trials are made from one environment
 lengths.svg      words in the delegation message and in everything the delegatee can see, by condition
 similarity.svg   word overlap (Jaccard) between environments
 ambiguity.svg    the reason assigned to each environment, and how often the generator's stated reason names each one
@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 
 HERE = Path(__file__).parent
 OUT = HERE / "figures"
-CONDITIONS = ("control", "main", "no_conflict")
+CONDITIONS = ("self", "request", "settled")
 SOURCES = {  # assigned reason -> keywords that name it in the generator's one-sentence reason
     "agreement": r"active agreement|active support agreement|term end|expired|lapsed|renewal",
     "data_scope": r"other (customers|tenants)|third.part|mix",
@@ -58,27 +58,53 @@ def visible_text(r: dict) -> str:
 
 
 def composition(rows: list[dict], envs: list[str]) -> None:
-    fig, ax = plt.subplots(figsize=(7.6, 1.9))
-    for x, e in enumerate(envs):
-        for y, c in enumerate(CONDITIONS):
-            r = next(r for r in rows if r["env_id"] == e and r["condition"] == c)
-            ax.add_patch(
-                plt.Rectangle(
-                    (x, y), 0.92, 0.88, facecolor="0.55" if r["conflict"] else "white", edgecolor="black", linewidth=0.6
-                )
-            )
-            if r["settled_by"]:
-                ax.text(x + 0.46, y + 0.44, r["settled_by"][0].upper(), ha="center", va="center", fontsize=8)
-    ax.set_xlim(-0.1, len(envs))
-    ax.set_ylim(-0.1, len(CONDITIONS))
-    ax.set_xticks([i + 0.46 for i in range(len(envs))], [e[1:] for e in envs], fontsize=7)
-    ax.set_yticks([i + 0.44 for i in range(len(CONDITIONS))], CONDITIONS)
-    ax.tick_params(length=0)
-    for side in ("left", "bottom"):
-        ax.spines[side].set_visible(False)
-    ax.set_xlabel("environment")
-    ax.set_title("gray: conflict trial    white: no-conflict trial (A allow, D deny)", fontsize=9, loc="left")
-    save(fig, "composition")
+    """A construction diagram, drawn by hand in the report's figure style, with counts from the data."""
+    settled = [r["settled_by"] for r in rows if r["condition"] == "settled"]
+    allow, deny = settled.count("allow"), settled.count("deny")
+    svg = f"""<svg xmlns="http://www.w3.org/2000/svg" width="760" height="290" viewBox="0 0 760 290" role="img" aria-labelledby="t d" font-family="'Latin Modern Roman','CMU Serif','Times New Roman',Times,serif" font-size="15" fill="#000">
+  <title id="t">How are three trials made from one environment?</title>
+  <desc id="d">Each of the {len(envs)} environments holds a delegation message, three wiki pages and the customer's first mail. Three trials branch from it. self adds nothing, request adds the follow-up mail asking for the full document, and settled adds the follow-up mail and one settling sentence in the delegation message, which allows sending in {allow} environments and forbids it in {deny}. self and request are conflict trials; settled is a no-conflict trial.</desc>
+  <defs><marker id="ar" viewBox="0 0 10 10" refX="9.5" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 1L10 5L0 9z" fill="#000"/></marker></defs>
+  <rect width="760" height="290" fill="#fff"/>
+  <g fill="none" stroke="#000" stroke-width="1">
+    <rect x="20" y="85" width="220" height="120"/>
+    <rect x="330" y="20" width="290" height="64"/>
+    <rect x="330" y="113" width="290" height="64"/>
+    <rect x="330" y="206" width="290" height="64"/>
+    <path d="M240 145 H290"/>
+    <path d="M290 52 V238"/>
+  </g>
+  <g fill="none" stroke="#000" stroke-width="1" marker-end="url(#ar)">
+    <path d="M290 52 H330"/>
+    <path d="M290 145 H330"/>
+    <path d="M290 238 H330"/>
+  </g>
+  <circle cx="290" cy="145" r="2.5" fill="#000"/>
+  <g text-anchor="middle">
+    <text x="130" y="110">Environment</text>
+    <text x="130" y="128" font-size="12" font-style="italic">\u00d7 {len(envs)}</text>
+    <text x="475" y="45">self</text>
+    <text x="475" y="138">request</text>
+    <text x="475" y="231">settled</text>
+  </g>
+  <g text-anchor="middle" font-size="12">
+    <text x="130" y="152">delegation message</text>
+    <text x="130" y="169">3 wiki pages</text>
+    <text x="130" y="186">customer's first mail</text>
+    <text x="475" y="64">+ nothing</text>
+    <text x="475" y="157">+ follow-up mail asking for the full document</text>
+    <text x="475" y="250">+ follow-up mail</text>
+    <text x="475" y="265">+ settling sentence: allow {allow}, deny {deny}</text>
+  </g>
+  <g font-size="13" font-style="italic">
+    <text x="636" y="57">conflict</text>
+    <text x="636" y="150">conflict</text>
+    <text x="636" y="243">no conflict</text>
+  </g>
+</svg>
+"""
+    (OUT / "composition.svg").write_text(svg.replace("\\u00d7", "\u00d7"))
+    print("wrote figures/composition.svg")
 
 
 def lengths(rows: list[dict]) -> None:
@@ -106,7 +132,7 @@ def lengths(rows: list[dict]) -> None:
 def similarity(rows: list[dict], envs: list[str]) -> None:
     vocab = {}
     for e in envs:
-        r = next(r for r in rows if r["env_id"] == e and r["condition"] == "main")
+        r = next(r for r in rows if r["env_id"] == e and r["condition"] == "request")
         vocab[e] = set(re.findall(r"[a-z]+", visible_text(r).lower()))
     m = [[len(vocab[a] & vocab[b]) / len(vocab[a] | vocab[b]) for b in envs] for a in envs]
     off = [m[i][j] for i in range(len(envs)) for j in range(len(envs)) if i != j]
@@ -125,7 +151,7 @@ def similarity(rows: list[dict], envs: list[str]) -> None:
 
 
 def ambiguity(rows: list[dict], envs: list[str]) -> None:
-    mains = [next(r for r in rows if r["env_id"] == e and r["condition"] == "main") for e in envs]
+    mains = [next(r for r in rows if r["env_id"] == e and r["condition"] == "request") for e in envs]
     labels = list(SOURCES)
     assigned = [sum(r["ambiguity_source"] == k for r in mains) for k in labels]
     named = [sum(bool(re.search(SOURCES[k], r["ambiguity"], re.I)) for r in mains) for k in labels]

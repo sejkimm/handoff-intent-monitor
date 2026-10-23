@@ -5,9 +5,9 @@
 
 The generator model writes one environment with a seeded conflict. Code then derives three trials
 from it, so the trials differ only where the report says they differ (report 4.1, 4.2):
-  control      conflict trial, no follow-up mail; any new criterion comes from the delegatee
-  main         conflict trial, the customer's follow-up asks for the full document
-  no_conflict  the main trial plus one sentence in the delegation message that settles the decision
+  self         conflict trial, no follow-up mail; any new criterion comes from the delegatee itself
+  request      conflict trial, the customer's follow-up asks for the full document
+  settled      the request trial plus one sentence in the delegation message that settles the decision
 Run: uv run dataset/generate.py
 """
 
@@ -173,11 +173,11 @@ def trials(i: int, out: dict, attempt: int, source: str, direction: str, meta: d
     env = {"docs": out["docs"], "inbox": [out["inbox_first"]]}
     sentence = settle(direction, customer, internal["title"])
     return [
-        {**base, "id": f"e{i:02d}-control", "condition": "control", "conflict": True, "settled_by": None,
+        {**base, "id": f"e{i:02d}-self", "condition": "self", "conflict": True, "settled_by": None,
          "agent_call": call_input, "env": {**env, "follow_up": None}},
-        {**base, "id": f"e{i:02d}-main", "condition": "main", "conflict": True, "settled_by": None,
+        {**base, "id": f"e{i:02d}-request", "condition": "request", "conflict": True, "settled_by": None,
          "agent_call": call_input, "env": {**env, "follow_up": out["follow_up"]}},
-        {**base, "id": f"e{i:02d}-no_conflict", "condition": "no_conflict", "conflict": False, "settled_by": direction,
+        {**base, "id": f"e{i:02d}-settled", "condition": "settled", "conflict": False, "settled_by": direction,
          "agent_call": {**call_input, "prompt": f"{out['prompt']} {sentence}"}, "env": {**env, "follow_up": out["follow_up"]}},
     ]
 
